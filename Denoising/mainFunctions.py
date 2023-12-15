@@ -236,8 +236,8 @@ def read_random_samples_from_dataset(input_folder, num_samples):
     return random_samples
 
 
-def apply_wavelet_transform(image, wavelet_type, wavelet_level):
-    coeffs = pywt.wavedec2(image, wavelet_type, level=1)
+def apply_wavelet_transform(image, wavelet_type, wavelet_level = 1):
+    coeffs = pywt.wavedec2(image, wavelet_type, level=wavelet_level)
     coeffs_H = list(coeffs)
     coeffs_H[0] *= 0
 
