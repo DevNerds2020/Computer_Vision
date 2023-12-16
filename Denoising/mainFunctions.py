@@ -11,6 +11,28 @@ from skimage.metrics import (
 from sklearn.metrics import mean_absolute_error
 
 
+def filter_with_sharpening_filters(image, filter_type, filter_size):
+    #apply sharpening filters and then subtract the result from the original image and return the result
+    if filter_type == "laplacian":
+        kernel = np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]])
+        sharpened_image = cv2.filter2D(image, -1, kernel)
+    elif filter_type == "sobel":
+        kernel = np.array([[1, 0, -1], [2, 0, -2], [1, 0, -1]])
+        sharpened_image = cv2.filter2D(image, -1, kernel)
+    elif filter_type == "roberts":
+        kernel = np.array([[1, 0], [0, -1]])
+        sharpened_image = cv2.filter2D(image, -1, kernel)
+    elif filter_type == "high_pass":
+        kernel = np.array([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]])
+        sharpened_image = cv2.filter2D(image, -1, kernel)
+    elif filter_type == "unsharp_masking":
+        kernel = np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]])
+        sharpened_image = cv2.filter2D(image, -1, kernel)
+    else:
+        sharpened_image = image
+    return image - sharpened_image
+
+
 def add_salt_and_pepper_noise(image, density):
     noisy_image = np.copy(image)
     num_pixels = int(density * image.size)
@@ -179,7 +201,7 @@ def add_noise_to_dataset(noise_type, noise_variances, input_folder, output_folde
 
 
 def apply_filter_on_file_samples_and_plot_them(
-    images, filter_types, filter_sizes, figsize=(15, 10)
+    images, filter_types, filter_sizes, figsize=(15, 10), sharpening_filters=False
 ):
     fig, axes = plt.subplots(
         len(images), len(filter_sizes) * len(filter_types) + 1, figsize=figsize
@@ -191,7 +213,10 @@ def apply_filter_on_file_samples_and_plot_them(
 
         for j, filter_type in enumerate(filter_types):
             for k, filter_size in enumerate(filter_sizes):
-                denoised_image = apply_filters(image, filter_type, filter_size)
+                if(sharpening_filters):
+                    denoised_image = filter_with_sharpening_filters(image, filter_type, filter_size)
+                else:
+                    denoised_image = apply_filters(image, filter_type, filter_size)
                 axes[i, j * len(filter_sizes) + k + 1].imshow(
                     denoised_image, cmap="gray"
                 )
