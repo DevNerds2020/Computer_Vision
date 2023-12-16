@@ -270,6 +270,19 @@ def apply_wavelet_transform(image, wavelet_type, wavelet_level = 1):
     image_H = pywt.waverec2(coeffs_H, wavelet_type)
     return image_H, coeffs
 
+def apply_wavelet_filter_to_image(image, wavelet_type, wavelet_level = 1):
+    denoised_image, coeffs = apply_wavelet_transform(image, wavelet_type, wavelet_level)
+
+    # apply thresholding on the coefficients
+    threshold = 0.1
+    new_coeffs = []
+    for i in range(1, len(coeffs)):
+        new_coeffs.append(pywt.threshold(coeffs[i], threshold * max(coeffs[i])))
+    new_coeffs.append(coeffs[0])
+    denoised_image = pywt.waverec2(new_coeffs, wavelet_type)
+    
+    return denoised_image
+
 
 def apply_wavelet_transform_on_file_samples_and_plot_them(
     images, wavelet_type, wavelet_level, figsize=(20, 30)
