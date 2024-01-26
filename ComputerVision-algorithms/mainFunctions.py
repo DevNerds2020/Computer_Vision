@@ -83,3 +83,52 @@ def segment_image(image_path, ksize, sigma, theta, lambd, gamma):
 def compute_hog(image, orientations=9, pixels_per_cell=(8, 8), cells_per_block=(2, 2)):
     hog_features, hog_image = hog(image, orientations=orientations, pixels_per_cell=pixels_per_cell, cells_per_block=cells_per_block, block_norm='L2-Hys', visualize=True)
     return hog_features, hog_image
+
+def sift_stitch(img1, img2, ratio_threshold=0.75, min_match_count=4):
+    # Convert images to grayscale
+    gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+    gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
+
+    # Create SIFT detector and compute key points and descriptors
+    sift = cv2.SIFT_create()
+    kp1, des1 = sift.detectAndCompute(gray1, None)
+    kp2, des2 = sift.detectAndCompute(gray2, None)
+
+    # Perform matching using BFMatcher between key points of img1 and img2
+    bf = cv2.BFMatcher()
+    matches = bf.knnMatch(des1, des2, k=2)
+
+    # Filter matches based on Lowe's ratio test
+    good_matches = [m for m, n in matches if m.distance < ratio_threshold * n.distance]
+
+    # Check if enough good matches are found for image stitching
+    if len(good_matches) >= min_match_count:
+        # Obtain corresponding points in img1 and img2 for homography estimation
+        src_pts = np.float32([kp1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+        dst_pts = np.float32([kp2[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+
+        # Estimate homography between img1 and img2 using RANSAC
+        H, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+
+        # Warp img1 to match perspective with img2
+        result = cv2.warpPerspective(img1, H, (img2.shape[1] + img1.shape[1], img2.shape[0]))
+        result[0:img2.shape[0], 0:img2.shape[1]] = img2
+
+        return result, H
+    else:
+        return None, None
+
+def stitch_images(images, ratio_threshold=0.75, min_match_count=4):
+    # Initialize the stitched result with the first image
+    stitched_result = images[0]
+
+    for i in range(1, len(images)):
+        # Perform stitching for the current image and the existing stitched result
+        current_image = images[i]
+        stitched_result, _ = sift_stitch(stitched_result, current_image, ratio_threshold, min_match_count)
+
+        if stitched_result is None:
+            print(f"Insufficient matches for stitching image {i+1}.")
+            return
+
+    return stitched_result
